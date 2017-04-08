@@ -1,6 +1,6 @@
 # Binary Logistic Regression DrPH (Epidemiology)
 Kamarul Imran M  
-1 February 2016  
+8 April 2017  
 
 \newpage
 
@@ -34,10 +34,6 @@ The suggested steps are:
 Set our working directory. REMEMBER! your working directory (working folder) is different from my working directory
 
 
-```r
-# this is my working directory. You have to specify yours
-setwd("E:/Epi_Stat_Matters/LectureNotes2015/binary-logistic/binary-logistic-DrPH-2015/BinaryLogisticDrPH-Epid/Binary_Logistic_DrPH_Epid_Practicals")
-```
 
 ## Read data
 
@@ -59,7 +55,7 @@ mydata <- read.csv('logistic_data.csv', sep = ",", header = TRUE)
 head(mydata,10)
 ```
 
-More fancy, we can use *psych::describe* function
+More fancy, we can use 'psych::describe' function
 
 
 ```r
@@ -140,7 +136,6 @@ Use plots like
 * Histogram for numerical variables
 * and barplot for categorical variables, at least. 
 
-
 # Model parameters
 
 ## Estimate parameters
@@ -186,7 +181,7 @@ summary(mylogit)
 ## Number of Fisher Scoring iterations: 4
 ```
 
-If we would like to see the estimated *beta* then we can use this
+If we would like to see the estimated **beta** then we can use this
 
 
 ```r

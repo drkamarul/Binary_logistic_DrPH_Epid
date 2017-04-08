@@ -1,0 +1,420 @@
+---
+title: "Binary Logistic Regression DrPH (Epidemiology)"
+author: "Kamarul Imran M"
+date: "8 April 2017"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    keep_md: true
+
+---
+
+\newpage
+
+# Introduction
+
+## Modeling Binary Outcome Data 
+
+The suggested steps are:
+
+1. Describe data
+2. Explore data - Exploratory Data Analysis
+3. Estimate parameters 
+4. Interpret parameters
+4. Make Inference
+5. Calculate the fitted values 
+6. Make Prediction
+7. Assessing model
+8. Remedy model
+
+
+# Prepare workspace
+
+## Locate files
+
+* Browse your folders. 
+* Look for the files. 
+* Check the path to the folder containing the files
+
+## Set the folder  
+
+Set our working directory. REMEMBER! your working directory (working folder) is different from my working directory
+
+```{r, echo=FALSE}
+# this is my working directory. You have to specify yours
+setwd("E:/Epi_Stat_Matters/LectureNotes2015/binary-logistic/binary-logistic-DrPH-2015/BinaryLogisticDrPH-Epid/Binary_Logistic_DrPH_Epid_Practicals")
+
+
+
+```
+
+## Read data
+
+* Read our data in the working folder
+* Then, save as a csv file in our working directory
+
+```{r}
+mydata <- read.csv('logistic_data.csv', sep = ",", header = TRUE)
+
+```
+
+# Preliminary analysis
+
+## Describe your data
+
+```{r eval=FALSE}
+# observe data the first 10 observations 
+head(mydata,10)
+```
+
+More fancy, we can use 'psych::describe' function
+
+```{r}
+library(psych)
+describe(mydata)
+```
+
+Admit and Rank are taken as numerical variable which does not make sense. 
+We need to convert them to categorical (factor) variables.
+
+```{r}
+str(mydata$admit)
+str(mydata$rank)
+```
+
+```{r}
+mydata$admit2 <- factor(mydata$admit, labels = c('no','yes'))
+mydata$rank2 <- factor(mydata$rank, labels = c('first', 'second', 'third', 'fourth'))
+head(mydata)
+str(mydata)
+```
+
+## Explore your data
+
+Use plots like
+* Histogram for numerical variables
+* and barplot for categorical variables, at least. 
+
+# Model parameters
+
+## Estimate parameters
+
+* we estimate the logit or the log odds using `glm` function. 
+* We used **summary** to see the results stored as the glm model for example **mylogit** 
+* We used **coefficients** to examine the regression coefficients
+ 
+
+```{r}
+mylogit <- glm(admit2 ~ gre + gpa + rank2,family = 'binomial'(link = logit),data=mydata)
+summary(mylogit)
+
+```
+
+If we would like to see the estimated **beta** then we can use this
+
+```{r}
+coefficients(mylogit)
+
+```
+
+To obtain the odds ratios and their 95% CI, we need to exponentiate using *exp* the regression coefficients or the *betas* 
+
+
+```{r}
+exp(coefficients(mylogit))
+exp(confint(mylogit))
+
+```
+
+## Interpret parameters 
+
+1.  Interpret the *betas* (the log odds) and their 95% CIs
+2.  Interpret the *odds ratios* and their 95% CIs
+
+## Inference
+
+Here, we examine 
+
+1.  the p-values (hypothesis testing) and 
+2.  the confidence intervals. 
+
+What is the p-values?
+
+The p-value is defined as the probability of obtaining a result equal to or "more extreme" than what was actually observed, when the null hypothesis is true. In frequentist inference, the p-value is widely used in statistical hypothesis testing, specifically in null hypothesis significance testing.
+Ref: <https://en.wikipedia.org/wiki/P-value>
+
+For example, suppose that a vaccine study produced a P value of 0.04. This P value indicates that if the vaccine had no effect, you’d obtain the observed difference or more in 4% of studies due to random sampling error.
+Reg: <http://blog.minitab.com/blog/adventures-in-statistics-2/how-to-correctly-interpret-p-values>
+
+* First, using the method of maximum likelihood 
+* Next, using the SE method (function **confint.default**)
+
+```{r}
+confint(mylogit)
+confint.default(mylogit)
+```
+
+# Fitted and predicted values
+
+## Fitted values
+
+The fitted values are the expected values of the model. These expected values are the predicted probability for each observation (each patient) in the dataset. You can use 2 functions of getting the fitted values
+
+```{r fitted,  results = 'hide'}
+fitted(mylogit)
+predict(mylogit, type = 'response')
+```
+
+Manually, we can do this to calculate (verify) the conditional probability of being admitted for the current dataset
+
+```{r}
+head(fitted(mylogit))
+
+# calculate the logistic probability for the 1st observation
+exp(-1.567)/(1+exp(-1.567))
+```
+
+
+
+# Predicted values
+
+In R, you can prediction of the outcome based on a set of a new data
+
+## Create a new data to make prediction
+
+Similarly, one of the important objectives in modelling is to perform prediction based on the model using new data. 
+
+We can perform these predictions: 
+
+1. Predict the log odds for having the outcome
+2. Predict the conditional probability for having the outcome 
+
+Let us say we have these data
+
+gre = 380
+gpa = 3.61
+rank = first,second, third, fourth
+
+First, we create a data frame
+
+```{r newdata}
+new_datal <- data.frame( gre = 380, gpa = 3.61, rank2 = c('first','second','third', 'fourth'))
+new_datal
+```
+
+Now, we predict the log odds for being **admitted** for a population with **gre=30**, **gpa=3.61** and for different **rank**
+
+```{r}
+pred.logit<-predict(mylogit,newdata = new_datal, type='link')
+pred.logit
+```
+
+We can confirm this by calculate this (using first and third rank)
+
+```{r calc}
+-3.99 + 0.00226*380 + 0.8041*3.61 + 0
+-3.99 + 0.00226*380 + 0.8041*3.61 - 1.34
+```
+
+Notice, that similarity between **predict(x, type='response')** and **fitted** 
+Remember, we can calculate the conditional probability of having the outcome 
+
+
+# Compare models
+
+We compare a model with **gre** and without **gre**. This is done using the deviance method
+
+```{r}
+mylogit2 <- glm(admit2 ~ gpa + rank2, family = 'binomial'(link = logit),data=mydata)
+anova(mylogit, mylogit2, test = 'Chisq')
+```
+
+The p-value shows that mylogit and mylogit2 are different. It suggests the importance of **gre** at the level of significance of 5%. So should we keep **gre**? Perhaps yes, if we take the p-value as the requirement to assess for variable significance.  
+
+# Model assessment
+
+## Linearity in logits 
+
+**gre** is tested for linearity in logit. **gre** is linear but it is rescaled to produce less decimals 
+
+The linearity of logits is tested using library *mfp* package
+
+```{r}
+library(mfp)
+mylogit3 <- mfp(admit2 ~ fp(gre)+ gpa + rank2, family = 'binomial'(link = logit),data=mydata,verbose=T)
+```
+
+Now, let us check the estimated parameters based on fractional polynomials
+
+```{r}
+summary(mylogit3)
+mylogit3$fptable
+
+```
+
+## Overall model fitness
+
+To do these diagnostics, you can use *LogisticDx* package. This package produces the diagnostic measures for a binary regression model based on covariate pattern
+
+This package produces the Goodness-of-fit for binomial regression including the Hosmer-Lemeshow GOF test and the ROC curve. Usually, the number of groups (quantiles) equal 10 to perform the Hosmer-Lemeshow test. At the same time, we plot the ROC curve. Similarly, we can check the *LogisticDx::auc* value
+
+The *LogisticDx::dx* produces the estimates of residual diagnostics such as
+1.  standardized residuals
+2.  dchi-square
+3.  ddeviance
+
+```{r}
+library('LogisticDx')
+dx_mylogit2 <- dx(mylogit2,byCov=T)
+head(dx_mylogit2, 10)
+```
+
+Use *LogisticDx::gof* to produce 
+1.  Hosmer-Lemeshow GOF test
+2.  Osius and Rojek's tests
+3.  the auc
+
+```{r roc}
+fit.mylogit2 <- gof(mylogit2, g=10, plotROC = T)
+fit.mylogit2
+```
+
+
+To obtain the contigency table for the Hosmer-Lemeshow GOF test, we can use
+
+```{r}
+fit.mylogit2$ctHL
+```
+
+and for the GOF test
+
+```{r}
+fit.mylogit2$gof
+```
+
+We can also perform model fitness by using *ROCR* package
+
+```{r }
+library(ROCR)
+pred.prob2 <- predict(mylogit2, type='response')
+pred.prob22 <- prediction(pred.prob2, mydata$admit2)
+pred.prob22f <- performance(pred.prob22, measure='tpr', x.measure='fpr')
+plot(pred.prob22f)
+```
+
+Using *ROCR* package, we can also calculate the *AUC*
+
+```{r AUC}
+auc2<-performance(pred.prob22, measure='auc')
+auc2@y.values[[1]]
+```
+
+Another package is *MKmisc* package, to perform the Hosmer-Lemeshow test of GOF
+
+```{r gof}
+library(MKmisc)
+HLgof.test(fit = fitted(mylogit2), obs = mydata$admit)
+```
+
+
+## Diagnostic statistics
+
+We can start of plotting these
+
+```{r plot11}
+plot(dx_mylogit2$P, dx_mylogit2$dChisq)
+plot(dx_mylogit2$P, dx_mylogit2$dDev)
+```
+
+You may try and plot the covariate pattern numbers (identifiers) by using this
+
+```{r covarpat}
+library(epiR)
+dat.mf2 <- model.frame(mylogit2)
+head(dat.mf2)
+cv_mf2 <- epi.cp(dat.mf2[-1])
+head(cv_mf2$cov.pattern)
+```
+
+
+The *plot* function Will return many diagnostic plots
+
+```{r}
+plot(mylogit2)
+```
+
+Using K-fold validation. Will not discuss here.
+
+
+# Logistic model with interaction of predictors
+
+Let use see how we deal an interaction. First, read data from this text file.
+
+Columns (variables) no 2, and from 5 to 10 need to be converted to categorical (factor) variables. We will use *lapply* function for that. 
+
+```{r}
+data.l<-read.table("LOWBWT.txt",header=T)
+data.l[,c(2,5:10)]<-lapply(data.l[,c(2,5)],factor)
+```
+
+Now, observe the first few data
+
+```{r}
+head(data.l)
+```
+
+To simulate a binary predictor variable, we now recode LWT to LWD (LWT<110 vs >=110)
+
+```{r}
+data.l$LWD <- findInterval(data.l$LWT, 110)
+head(data.l$LWD)
+```
+
+Let us verify our categorization
+
+```{r}
+data.l$LWD <- factor(data.l$LWD, labels = c("less 110",">=110"))
+head(data.l$LWD, 10)
+head(data.l$LWT, 10)
+str(data.l$LWD)
+```
+
+Model the relationship between the outcome variable (LOW = 0,1) with predictors of LWD and AGE interacting with each other. You may use # to perform that 
+
+```{r}
+mod.lwd.age <- glm(LOW ~ LWD*AGE, family = binomial(link =logit ),data=data.l)
+summary(mod.lwd.age)
+```
+
+Predict our model (with a two-way interaction between age and LWD using a new set of data. We can create such a dataset with this
+
+```{r}
+newdata.2<-data.frame(AGE = c(15,15,20,20),LWD= rep(c("less 110",">=110"), 2))
+newdata.2
+```
+
+Now let us predict the log odds for the model with the interaction term
+
+```{r}
+predict(mod.lwd.age, newdata = newdata.2)
+
+```
+
+Can you prove the predicted log odds manually?
+
+```{r}
+-1.1696 + 0 + 0.0526*15 + 0
+-1.1696 + 1.944*1 + 0.0526*15 - 0.1322*1*15
+-1.1696 + 0 + 0.0526*20 + 0
+-1.1696 + 1.944*1 + 0.0526*20 - 0.1322*1*20
+```
+
+
+# Resources
+
+1. <http://www.ats.ucla.edu/stat/r/dae/logit.htm>
+2. <https://cran.r-project.org/web/packages/HSAUR/vignettes/Ch_logistic_regression_glm.pdf>
+
+
