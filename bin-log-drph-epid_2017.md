@@ -55,7 +55,7 @@ mydata <- read.csv('logistic_data.csv', sep = ",", header = TRUE)
 head(mydata,10)
 ```
 
-More fancy, we can use 'psych::describe' function
+More fancy, we can use `psych::describe` function
 
 
 ```r
