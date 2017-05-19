@@ -1,0 +1,355 @@
+---
+title: "Binary Logistic DrPH (Epidemiology)"
+author: "Kamarul Imran M"
+date: "1 February 2016"
+output: 
+    pdf_document:
+     toc: true
+---
+
+\newpage
+
+# Modeling Binomial Data
+
+1. Describe data
+2. Explore data - Exploratory Data Analysis
+3. Estimate parameters
+4. Make Inference
+5. Make Prediction
+6. Interpretation
+
+# Locate files
+
+* Browse your folders. 
+* Look for the files. 
+* Check the path to the folder containing the files
+
+# Set the folder  
+
+Set our working directory. REMEMBER! your working directory (working folder) is different from my working directory
+
+```{r}
+# this is my working directory. You have to specify yours
+setwd("E:/Epi_Stat_Matters/LectureNotes2015/binary-logistic/binary-logistic-DrPH-2015/BinaryLogisticDrPH-Epid/BinaryLog-DrPH-Epid")
+
+```
+
+# Read data
+
+* Read our data in the working folder
+* Then, save as a csv file in our working directory
+
+```{r}
+mydata <- read.csv("http://www.ats.ucla.edu/stat/data/binary.csv")
+write.csv2(mydata,'logistic.csv')
+```
+
+# Describe data
+
+```{r eval=FALSE}
+#observe data
+head(mydata,10)
+```
+
+Rank is taken as numerical variable which does not make sense. 
+We need to convert it to a categorical (factor) variable
+
+```{r}
+summary(mydata)
+mydata$rank<-factor(mydata$rank)
+summary(mydata$rank)
+```
+
+More fancy, we can use *psych::describe* function
+
+```{r psych }
+library(psych)
+describe(mydata)
+
+```
+# Explore data
+
+Use plots like
+* Histogram for numerical variables
+* and barplot for categorical variables, at least. 
+
+# Estimate parameters
+
+* we estimate the logit or the log odds. 
+* We used **summary** to see the results stored as **mylogit** 
+* We used **coefficients** to examine the regression coefficients 
+
+```{r}
+mylogit <- glm(admit~gre+gpa+rank,family = 'binomial'(link = logit),data=mydata)
+summary(mylogit)
+coefficients(mylogit)
+```
+
+To obtain the odds ratios and their 95% CI, we need to exponentiate using **exp** the regression coefficients or the betas 
+
+```{r}
+exp(coefficients(mylogit))
+exp(confint(mylogit))
+
+```
+
+
+# Make inference
+
+Here, we examine the p-values (hypothesis testing) and the confidence intervals. 
+
+* First, using the method of maximum likelihood 
+* Next, using the SE method (function **confint.default**)
+
+```{r}
+confint(mylogit)
+confint.default(mylogit)
+```
+
+# Calculate the fitted values
+
+The fitted values are the expected values of the model. These expected values are the predicted probability for each observation (each patient) in the dataset
+
+```{r fitted}
+fitted(mylogit)
+```
+
+# Make prediction
+
+Similarly, one of the important objectives in modelling is to perform prediction based on the model using new data. 
+
+We can perform these predictions: 
+
+1. Predict the log odds for having the outcome
+2. Predict the conditional probability for having the outcome 
+
+Let us say we have these data
+
+gre = 380
+gpa = 3.61
+rank = 3
+
+First, we create a data frame
+
+```{r newdata}
+new_datal <- data.frame( gre = 380, gpa = 3.61, rank = '3')
+```
+
+Now, we can perform the prediction
+
+```{r}
+pred.logit<-predict(mylogit,newdata = new_datal, type='link')
+pred.logit
+```
+
+We can confirm this by calculate this 
+
+```{r calc}
+-3.99+0.00226*380+0.8041*3.61-1.34
+```
+
+Notice, that similarity between **predict(x, type='response'** and **fitted** 
+Remember, we can calculate the conditional probability of having the outcome 
+
+```{r}
+pred.prob<-predict(mylogit, newdata = new_datal, type='response')
+pred.prob
+```
+
+We can verify this by two ways
+
+```{r}
+head(fitted(mylogit))
+
+# calculate the logistic probability
+exp(-1.567)/(1+exp(-1.567))
+```
+
+# Compare models
+
+We compare a model with **vs** and without **gre**. This is done using the deviance 
+
+```{r}
+summary(mylogit)
+mylogit2 <- glm(admit~gpa+rank,family = 'binomial'(link = logit),data=mydata)
+summary(mylogit2)
+anova(mylogit,mylogit2,test = 'Chisq')
+```
+
+# Linearity in logits 
+
+**gre** is tested for linearity in logit. **gre** is linear but it is rescaled to produce less decimals 
+
+The linearity of logits is tested using library **mfp**
+
+```{r}
+library(mfp)
+mylogit3 <- mfp(admit~fp(gre)+gpa+rank,family = 'binomial'(link = logit),data=mydata,verbose=T)
+summary(mylogit3)
+mylogit3$fptable
+
+```
+
+# Diagnostics for a model with a binomial response
+
+To do these diagnostics, you need to load **library('LogisticDx')**. 
+
+First, we produce the diagnostic measures for a binary regression model by covariate pattern
+
+Next, we produce the Goodness-of-fit for binomial regression. Usually, the number of groups (quantiles) equal 10 to perform the Hosmer-Lemeshow test. At the same time, we plot the ROC curve 
+
+Similarly, we can check the **auc** value
+
+```{r}
+library('LogisticDx')
+dx(mylogit2,byCov=T)
+fit.mylogit2<-gof(mylogit2,g=10,plotROC = T)
+fit.mylogit2
+#area under curve
+fit.mylogit2$auc
+#chi square test for gof
+fit.mylogit2$chiSq
+#contigency table for HL test
+fit.mylogit2$ctHL
+#GOF test
+fit.mylogit2$gof
+
+# another package for ROC
+library(ROCR)
+pred.prob2<-predict(mylogit2, type='response')
+head(pred.prob2)
+pred.prob22<-prediction(pred.prob2, mydata$admit )
+pred.prob22f<-performance(pred.prob22, measure='tpr', x.measure='fpr')
+plot(pred.prob22f)
+
+auc2<-performance(pred.prob22, measure='auc')
+auc2@y.values[[1]]
+```
+
+# Diagnostic plot
+
+Will return many diagnostic plot
+
+```{r}
+plot(mylogit2)
+```
+
+# Interaction
+
+Let use see how we deal an interaction. First, read data from this text file.
+
+Columns (variables) no 2, and from 5 to 10 need to be converted to categorical (factor) variables
+
+```{r}
+data.l<-read.table("LOWBWT.txt",header=T)
+data.l[,c(2,5:10)]<-lapply(data.l[,c(2,5)],factor)
+```
+
+To simulate a binary predictor variable, we now recode LWT to LWD (LWT<110 vs >=110)
+
+```{r}
+data.l$LWD<-findInterval(data.l$LWT,110)
+data.l$LWD<-factor(data.l$LWD,labels = c("less 110",">=110"))
+head(data.l$LWD,10)
+head(data.l$LWT,10)
+str(data.l$LWD)
+```
+
+Model the relationship; outcome (LOW=0,1) with predictors of LWD and AGE interact with each other. You may try with using #
+
+```{r}
+mod.lwd.age<-glm(LOW~LWD*AGE,family = binomial(link =logit ),data=data.l)
+summary(mod.lwd.age)
+```
+
+Predict our model using new data. Before doing so, we need to create a dataset containing new data
+
+```{r}
+newdata.2<-data.frame(AGE=c(15,15,20,20),LWD=rep(c("less 110",">=110"),2))
+```
+
+Now let us predict the log odds
+
+```{r}
+predict(mod.lwd.age,newdata=newdata.2)
+newdata.2
+```
+
+Can you prove these?
+
+```{r}
+-1.1696+0+0.0526*15+0
+-1.1696+1.944*1+0.0526*15-0.1322*1*15
+-1.1696+0+0.0526*20+0
+-1.1696+1.944*1+0.0526*20-0.1322*1*20
+```
+
+
+# Resources
+
+1. http://www.ats.ucla.edu/stat/r/dae/logit.htm
+2. https://cran.r-project.org/web/packages/HSAUR/vignettes/Ch_logistic_regression_glm.pdf
+
+
+
+# Additional materials
+
+1. http://www.shizukalab.com/toolkits/plotting-logistic-regression-in-r
+
+First, we'll create a fake dataset of 20 individuals of different body sizes:
+
+```{r}
+bodysize<-rnorm(20,30,2) # generates 20 values, with mean of 30 & s.d.=2
+bodysize<-sort(bodysize) # sorts these values in ascending order. 
+survive<-c(0,0,0,0,0,1,0,1,0,0,1,1,0,1,1,1,0,1,1,1) # assign 'survival' to these 20 individuals non-randomly... most mortality occurs at smaller body size
+dat<-as.data.frame(cbind(bodysize,survive)) # saves dataframe with two columns: body size & survival
+dat # just shows you what your dataset looks like. It will look something like this:
+```
+
+Plot
+
+```{r}
+#quartz(title="bodysize vs. survival") # creates a quartz window with title
+
+plot(bodysize,survive,xlab="Body size",ylab="Probability of survival") # plot with body size on x-axis and survival (0 or 1) on y-axis
+g=glm(survive~bodysize,family=binomial,dat) # run a logistic regression model (in this case, generalized linear model with logit link). see ?glm
+
+curve(predict(g,data.frame(bodysize=x),type="resp"),add=TRUE) # draws a curve based on prediction from logistic regression model
+
+points(bodysize,fitted(g),pch=20) # optional: you could skip this draws an invisible set of points of body size survival based on a 'fit' to glm model. pch= changes type of dots.
+
+```
+
+2. http://www.cookbook-r.com/Statistical_analysis/Logistic_regression/
+
+```{r}
+data(mtcars)
+dat2 <- subset(mtcars, select=c(mpg, am, vs))
+dat2
+```
+
+Continuous predictor 
+
+```{r}
+# Do the logistic regression - both of these have the same effect.
+# ("logit" is the default model when family is binomial.)
+logr_vm <- glm(vs ~ mpg, data=dat2, family=binomial)
+logr_vm <- glm(vs ~ mpg, data=dat2, family=binomial(link="logit"))
+
+```
+
+Plotting, first using ggplot2 then base graphics
+
+```{r}
+library(ggplot2)
+ggplot(dat2, aes(x=mpg, y=vs)) + geom_point()+
+  stat_smooth(method="glm",method.args  ="binomial",se=FALSE)
+
+plot(dat2$mpg, dat2$vs)
+curve(predict(logr_vm, data.frame(mpg=x), type="response"), add=TRUE) 
+
+```
+
+
+
+
